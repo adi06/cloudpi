@@ -12,12 +12,12 @@
 hs_err_pid*
 
 # ide
-.idea/
+.idea
 .iml
 .classpath
 .eclipse
 .project
-.settings/
+.settings
 
 # target
-target/
+target
