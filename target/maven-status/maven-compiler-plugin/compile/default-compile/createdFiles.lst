@@ -1,9 +1,0 @@
-application\instance\configuration\AWSEC2KeyPair.class
-application\service\AWSClientService.class
-application\service\CloudPiService.class
-application\CloudPiApplication.class
-application\instance\AWSEC2InstanceService.class
-application\credentials\AWSCredentials.class
-application\instance\configuration\AWSEC2SecurityGroup.class
-application\controller\CloudPiController.class
-application\credentials\AWSConfiguration.class
