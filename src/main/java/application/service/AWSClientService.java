@@ -1,6 +1,7 @@
 package application.service;
 
-
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -22,26 +23,23 @@ import application.credentials.AWSConfiguration;
 public class AWSClientService {
 	private AmazonEC2 ec2Client;
 	private AmazonS3 s3Client;
-	private BasicAWSCredentials awsCreds;
+
 	@Autowired
 	private AWSConfiguration awsConfig;
+	private BasicAWSCredentials basicAwsCreds;
 	private static final Logger logger = Logger.getLogger(AWSClientService.class.getName());
 
 	@PostConstruct
-	public void init(){
-		
-		awsCreds = new BasicAWSCredentials(awsConfig.getAccessKey(), awsConfig.getSecretKey());
+	public void init() {
+		basicAwsCreds = new BasicAWSCredentials(awsConfig.getAccessKey(), awsConfig.getSecretKey());
+
 		logger.info("Initializing ec2client");
+		ec2Client = AmazonEC2ClientBuilder.standard().withCredentials(new AWSStaticCredentialsProvider(basicAwsCreds))
+				.withRegion(Regions.US_WEST_2).build();
 		
-		ec2Client = AmazonEC2ClientBuilder.standard()
-								.withCredentials(new AWSStaticCredentialsProvider(awsCreds))
-								.withRegion(Regions.US_EAST_1)
-								.build();
 		logger.info("Initializing s3client");
-		s3Client = AmazonS3ClientBuilder.standard()
-								.withCredentials(new AWSStaticCredentialsProvider(awsCreds))
-								.withRegion(Regions.US_WEST_2)
-								.build();
+		s3Client = AmazonS3ClientBuilder.standard().withCredentials(new AWSStaticCredentialsProvider(basicAwsCreds))
+				.withRegion(Regions.US_WEST_2).build();
 	}
 
 	public AmazonEC2 getEC2Client() {

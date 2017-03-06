@@ -1,6 +1,5 @@
 package application.credentials;
 
+public class AwsCredentials {
 
-public class AWSCredentials {
-	
 }
