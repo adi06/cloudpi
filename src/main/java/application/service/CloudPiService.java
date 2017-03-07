@@ -15,23 +15,34 @@ import application.instance.SQSInstanceServices;
 @Service
 public class CloudPiService {
 
-
 	@Autowired
 	private AWSEC2InstanceService awsec2InstanceService;
 	@Autowired
 	private SQSInstanceServices sqsInstanceService; 
-	
+	@Autowired
+	private AWSS3Service s3Service;
+	//TODO move to config file
+	private static final int INSTANCE_POOL_SIZE = 10;
 	private static final Logger logger = Logger.getLogger(CloudPiService.class.getName());
 	
 	
-	public String calculatePi(String input){
+	public void calculatePi(String input){
 	   
 		String res=sqsInstanceService.push(input);
-		return "Success "+res;
 		
-//		RunInstancesResult runInstanceResult = awsec2InstanceService.createInstance();
-//		List<Instance> instances = runInstanceResult.getReservation().getInstances();
-//		logger.info("instanceId "+instances.get(0).getInstanceId());
-//		return instances.get(0).getInstanceId();
+		//TODO replace queue size
+		
+		/*while(!queue.isEmpty()){
+			if(awsec2InstanceService.getRunningInstanceCount() <= INSTANCE_POOL_SIZE){
+				//queue.pop get input
+				String instanceId = awsec2InstanceService.createInstance(input);
+				if(s3Service.hasObject(input)){
+					awsec2InstanceService.terminateInstance(instanceId);
+				}
+			}
+			else{
+				Thread.sleep(3);
+			}
+		}*/
 	}
 }

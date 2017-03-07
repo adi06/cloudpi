@@ -1,14 +1,22 @@
 package application.instance;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.logging.Logger;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
@@ -26,9 +34,8 @@ public class AWSEC2InstanceService {
 
 	private static final Logger logger = Logger.getLogger(AWSEC2InstanceService.class.getName());
 
-	public String createInstance(int iterations) {
+	public String createInstance(String iterations) {
 		logger.info("creating instance");
-		String input = String.valueOf(iterations);
 		String instanceId = null;
 		try {
 
@@ -38,7 +45,8 @@ public class AWSEC2InstanceService {
 							+ "~/bin/aws s3api put-object"
 							+ " --bucket s3-cloudpi" + " --key \"`cat ~/pifft/test-{0}.in`\"" 
 							+ " --body /tmp/pifft-{0}.out";
-			cmd = MessageFormat.format(cmd, new Object[] { input });
+			
+			cmd = MessageFormat.format(cmd, new Object[] { iterations });
 			logger.info("Command " + cmd);
 			String cmdEncoding = Base64.getEncoder().encodeToString(cmd.getBytes());
 			//TODO move to configuration file.
@@ -84,6 +92,26 @@ public class AWSEC2InstanceService {
 		} catch (Exception e) {
 			logger.severe("Caught Exception " + e.getMessage());
 		}
+	}
+	
+	public int getRunningInstanceCount(){
+		int count = 0;
+		
+		DescribeInstancesRequest request = new DescribeInstancesRequest();
+		DescribeInstancesResult result;
+		synchronized(this) {
+			result = awsClientService.getEC2Client().describeInstances(request);
+		}
+		for(Reservation reservation : result.getReservations()) {
+			for(Instance instance : reservation.getInstances()){
+				if(InstanceStateName.Pending.toString().equals(instance.getState().getName())
+						|| InstanceStateName.Running.toString().equals(instance.getState().getName())){
+					count++;
+				}
+			}
+		}
+		logger.info("count "+count);
+		return count;
 	}
 
 }
