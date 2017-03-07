@@ -34,15 +34,6 @@ public class SQSClientServices {
 	@PostConstruct
 	public void init() {
 		LOGGER.info("Creating new SQS FIFO queue");
-		AWSCredentials credentials = null;
-		try {
-			credentials = new ProfileCredentialsProvider().getCredentials();
-		} catch (Exception e) {
-			throw new AmazonClientException("Can't load the credentials from the credential profiles file. "
-					+ "Please make sure that your credentials file is at the correct "
-					+ "location (~/.aws/credentials), and is a in valid format.", e);
-		}
-
 		sqsClient = new AmazonSQSClient().withRegion(Regions.US_WEST_2);
 
 		CreateQueueRequest createQueueRequest = new CreateQueueRequest(sqsConfig.getQueueName())

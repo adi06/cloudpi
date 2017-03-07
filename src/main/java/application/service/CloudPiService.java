@@ -18,31 +18,28 @@ public class CloudPiService {
 	@Autowired
 	private AWSEC2InstanceService awsec2InstanceService;
 	@Autowired
-	private SQSInstanceServices sqsInstanceService; 
+	private SQSInstanceServices sqsInstanceService;
 	@Autowired
 	private AWSS3Service s3Service;
-	//TODO move to config file
+	// TODO move to config file
 	private static final int INSTANCE_POOL_SIZE = 10;
 	private static final Logger logger = Logger.getLogger(CloudPiService.class.getName());
-	
-	
-	public void calculatePi(String input){
-	   
-		String res=sqsInstanceService.push(input);
-		
-		//TODO replace queue size
-		
-		/*while(!queue.isEmpty()){
-			if(awsec2InstanceService.getRunningInstanceCount() <= INSTANCE_POOL_SIZE){
-				//queue.pop get input
-				String instanceId = awsec2InstanceService.createInstance(input);
-				if(s3Service.hasObject(input)){
-					awsec2InstanceService.terminateInstance(instanceId);
-				}
-			}
-			else{
-				Thread.sleep(3);
-			}
-		}*/
+
+	public void calculatePi(String input) {
+
+		String res = sqsInstanceService.push(input);
+		// System.out.println(res);
+		// sqsInstanceService.pop();
+		// TODO replace queue size
+
+		/*
+		 * while(!queue.isEmpty()){
+		 * if(awsec2InstanceService.getRunningInstanceCount() <=
+		 * INSTANCE_POOL_SIZE){ //queue.pop get input String instanceId =
+		 * awsec2InstanceService.createInstance(input);
+		 * if(s3Service.hasObject(input)){
+		 * awsec2InstanceService.terminateInstance(instanceId); } } else{
+		 * Thread.sleep(3); } }
+		 */
 	}
 }
