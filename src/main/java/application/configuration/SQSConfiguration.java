@@ -1,4 +1,4 @@
-package application.credentials;
+package application.configuration;
 
 import java.util.HashMap;
 import java.util.Map;

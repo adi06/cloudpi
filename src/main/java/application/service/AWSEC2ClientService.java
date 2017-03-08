@@ -1,19 +1,23 @@
-package application.instance;
+package application.service;
 
 import java.text.MessageFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
 import java.util.logging.Logger;
+
+import javax.annotation.PostConstruct;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.Reservation;
@@ -22,17 +26,24 @@ import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.ec2.model.TerminateInstancesResult;
 
-import application.credentials.AWSConfiguration;
-import application.service.AWSClientService;
+import application.configuration.AWSConfiguration;
 
 @Service
-public class AWSEC2InstanceService {
-	@Autowired
-	private AWSClientService awsClientService;
+public class AWSEC2ClientService {
+	private AmazonEC2 ec2Client;
+	private BasicAWSCredentials basicAwsCreds;
 	@Autowired
 	private AWSConfiguration awsConfig;
 
-	private static final Logger logger = Logger.getLogger(AWSEC2InstanceService.class.getName());
+	private static final Logger logger = Logger.getLogger(AWSEC2ClientService.class.getName());
+	
+	@PostConstruct
+	public void init(){
+		logger.info("Initializing ec2client");
+		basicAwsCreds = new BasicAWSCredentials(awsConfig.getAccessKey(), awsConfig.getSecretKey());
+		ec2Client = AmazonEC2ClientBuilder.standard().withCredentials(new AWSStaticCredentialsProvider(basicAwsCreds))
+				.withRegion(Regions.US_WEST_2).build();
+	}
 
 	public String createInstance(String iterations) {
 		logger.info("creating instance");
@@ -54,7 +65,7 @@ public class AWSEC2InstanceService {
 					.withMinCount(1).withMaxCount(1).withInstanceType("t2.micro").withKeyName("kp_cloudpi")
 					.withSecurityGroups("sg_cloudpi").withUserData(cmdEncoding);
 
-			RunInstancesResult instancesResult = awsClientService.getEC2Client().runInstances(runInstanceRequest);
+			RunInstancesResult instancesResult = ec2Client.runInstances(runInstanceRequest);
 			instanceId = instancesResult.getReservation().getInstances().get(0).getInstanceId();
 			logger.info("InstanceId " + instanceId);
 
@@ -71,17 +82,17 @@ public class AWSEC2InstanceService {
 	}
 
 	public void stopInstance(String instanceId) {
-
+		//TODO
 	}
 
 	public void startInstance(String instanceId) {
-
+		//TODO
 	}
 
 	public void terminateInstance(String ...instanceIds) {
 		try {
 			TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest(Arrays.asList(instanceIds));
-			TerminateInstancesResult result = awsClientService.getEC2Client().terminateInstances(terminateRequest);
+			TerminateInstancesResult result = ec2Client.terminateInstances(terminateRequest);
 			logger.info("terminate instance result "+result);
 		} catch (AmazonServiceException e) {
 			logger.severe("Error terminating instances");
@@ -100,7 +111,7 @@ public class AWSEC2InstanceService {
 		DescribeInstancesRequest request = new DescribeInstancesRequest();
 		DescribeInstancesResult result;
 		synchronized(this) {
-			result = awsClientService.getEC2Client().describeInstances(request);
+			result = ec2Client.describeInstances(request);
 		}
 		for(Reservation reservation : result.getReservations()) {
 			for(Instance instance : reservation.getInstances()){
@@ -110,7 +121,7 @@ public class AWSEC2InstanceService {
 				}
 			}
 		}
-		logger.info("count "+count);
+		logger.info("instance count "+count);
 		return count;
 	}
 
