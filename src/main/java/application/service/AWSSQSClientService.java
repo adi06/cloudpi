@@ -1,7 +1,7 @@
 package application.service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -24,7 +24,6 @@ import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.QueueAttributeName;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
-import com.amazonaws.services.sqs.model.SendMessageResult;
 
 import application.configuration.AWSConfiguration;
 import application.configuration.SQSConfiguration;
@@ -38,6 +37,7 @@ public class AWSSQSClientService {
 	@Autowired
 	private SQSConfiguration sqsConfig;
 	private BasicAWSCredentials basicAwsCreds;
+	private static final Object mutex = new Object();
 	private static final Logger logger = Logger.getLogger(AWSSQSClientService.class.getName());
 	
 	@PostConstruct
@@ -73,11 +73,28 @@ public class AWSSQSClientService {
 		}
 	}
 	public void push(String input) {
+		try{
 		SendMessageRequest sendMessageRequest = new SendMessageRequest(sqsQueueUrl, input);
 		sendMessageRequest.setMessageGroupId("cloudPi");
 
-		SendMessageResult sendMessageResult = sqsClient.sendMessage(sendMessageRequest);
-		logger.info("message " + sendMessageResult.toString());
+		sqsClient.sendMessage(sendMessageRequest);
+		logger.info("message " + input);
+		}catch (AmazonServiceException ase) {
+			logger.severe("Caught an AmazonServiceException, which means your request made it "
+					+ "to Amazon SQS, but was rejected with an error response for some reason.");
+			logger.severe("Error Message:    " + ase.getMessage());
+			logger.severe("HTTP Status Code: " + ase.getStatusCode());
+			logger.severe("AWS Error Code:   " + ase.getErrorCode());
+			logger.severe("Error Type:       " + ase.getErrorType());
+			logger.severe("Request ID:       " + ase.getRequestId());
+		} catch (AmazonClientException ace) {
+			logger.severe("Caught an AmazonClientException, which means the client encountered "
+					+ "a serious internal problem while trying to communicate with SQS, such as not "
+					+ "being able to access the network.");
+			logger.severe("Error Message: " + ace.getMessage());
+		} catch (Exception e) {
+			logger.severe("" + e);
+		}
 	}
 
 	public String pop() {
@@ -86,25 +103,17 @@ public class AWSSQSClientService {
 			logger.info("Receiving messages from MyFifoQueue.fifo.\n");
 			ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(sqsQueueUrl);
 			
-			List<Message> messages = sqsClient.receiveMessage(receiveMessageRequest).getMessages();
-			for (Message message : messages) {
-				logger.severe("  Message");
-				logger.severe("    MessageId:     " + message.getMessageId());
-				logger.severe("    ReceiptHandle: " + message.getReceiptHandle());
-				logger.severe("    MD5OfBody:     " + message.getMD5OfBody());
-				logger.severe("    Body:          " + message.getBody());
-				for (Entry<String, String> entry : message.getAttributes().entrySet()) {
-					logger.severe("  Attribute");
-					logger.severe("    Name:  " + entry.getKey());
-					logger.severe("    Value: " + entry.getValue());
-				}
-			}
+			List<Message> messages = new ArrayList<Message>();
+			while(messages.isEmpty() || messages.size() == 0)
+				messages = sqsClient.receiveMessage(receiveMessageRequest).getMessages();
+			
 			msg = messages.get(0).getBody();
 
 			// Delete the message
-			logger.severe("Deleting the message.\n");
+			logger.info("Deleting the message. "+msg);
 			String messageReceiptHandle = messages.get(0).getReceiptHandle();
 			sqsClient.deleteMessage(new DeleteMessageRequest(sqsQueueUrl, messageReceiptHandle));
+			
 		} catch (AmazonServiceException ase) {
 			logger.severe("Caught an AmazonServiceException, which means your request made it "
 					+ "to Amazon SQS, but was rejected with an error response for some reason.");
@@ -127,11 +136,12 @@ public class AWSSQSClientService {
 	public int getNumberOfMessages() {
 		GetQueueAttributesResult result = null;
 		try {
-			Thread.sleep(3000);
 			GetQueueAttributesRequest request = new GetQueueAttributesRequest().withQueueUrl(sqsQueueUrl)
 					.withAttributeNames(QueueAttributeName.ApproximateNumberOfMessages);
-			result = sqsClient.getQueueAttributes(request);
-			logger.info("attributes "+result.toString());
+			synchronized(mutex){
+				Thread.sleep(2000);
+				result = sqsClient.getQueueAttributes(request);
+			}
 		} catch (AmazonServiceException ase) {
 			logger.severe("Caught an AmazonServiceException, which means your request made it "
 					+ "to Amazon SQS, but was rejected with an error response for some reason.");

@@ -1,8 +1,10 @@
 package application.service;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -18,13 +20,10 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
-import com.amazonaws.services.ec2.model.TerminateInstancesResult;
 
 import application.configuration.AWSConfiguration;
 
@@ -34,11 +33,11 @@ public class AWSEC2ClientService {
 	private BasicAWSCredentials basicAwsCreds;
 	@Autowired
 	private AWSConfiguration awsConfig;
-
+	private static final Object mutex = new Object();
 	private static final Logger logger = Logger.getLogger(AWSEC2ClientService.class.getName());
-	
+
 	@PostConstruct
-	public void init(){
+	public void init() {
 		logger.info("Initializing ec2client");
 		basicAwsCreds = new BasicAWSCredentials(awsConfig.getAccessKey(), awsConfig.getSecretKey());
 		ec2Client = AmazonEC2ClientBuilder.standard().withCredentials(new AWSStaticCredentialsProvider(basicAwsCreds))
@@ -50,25 +49,21 @@ public class AWSEC2ClientService {
 		String instanceId = null;
 		try {
 
-			String cmd = "#!/bin/bash\n" 
-							+ "echo {0} > ~/pifft/test-{0}.in\n"
-							+ "~/pifft/pifft ~/pifft/test-{0}.in > /tmp/pifft-{0}.out\n"
-							+ "~/bin/aws s3api put-object"
-							+ " --bucket s3-cloudpi" + " --key \"`cat ~/pifft/test-{0}.in`\"" 
-							+ " --body /tmp/pifft-{0}.out";
-			
+			String cmd = "#!/bin/bash\n" + "echo {0} > ~/pifft/test-{0}.in\n"
+					+ "~/pifft/pifft ~/pifft/test-{0}.in > /tmp/pifft-{0}.out\n" + "~/bin/aws s3api put-object"
+					+ " --bucket s3-cloudpi" + " --key \"`cat ~/pifft/test-{0}.in`\"" + " --body /tmp/pifft-{0}.out";
+
 			cmd = MessageFormat.format(cmd, new Object[] { iterations });
 			logger.info("Command " + cmd);
 			String cmdEncoding = Base64.getEncoder().encodeToString(cmd.getBytes());
-			//TODO move to configuration file.
+			// TODO move to configuration file.
 			RunInstancesRequest runInstanceRequest = new RunInstancesRequest().withImageId("ami-5deb673d")
 					.withMinCount(1).withMaxCount(1).withInstanceType("t2.micro").withKeyName("kp_cloudpi")
 					.withSecurityGroups("sg_cloudpi").withUserData(cmdEncoding);
 
 			RunInstancesResult instancesResult = ec2Client.runInstances(runInstanceRequest);
 			instanceId = instancesResult.getReservation().getInstances().get(0).getInstanceId();
-			logger.info("InstanceId " + instanceId);
-
+			
 		} catch (AmazonServiceException e) {
 			logger.severe("Error creating instances");
 			logger.severe("Caught Exception: " + e.getMessage());
@@ -82,18 +77,18 @@ public class AWSEC2ClientService {
 	}
 
 	public void stopInstance(String instanceId) {
-		//TODO
+		// TODO
 	}
 
 	public void startInstance(String instanceId) {
-		//TODO
+		// TODO
 	}
 
-	public void terminateInstance(String ...instanceIds) {
+	public void terminateInstance(String... instanceIds) {
 		try {
+			logger.info("terminating instance "+instanceIds[0]);
 			TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest(Arrays.asList(instanceIds));
-			TerminateInstancesResult result = ec2Client.terminateInstances(terminateRequest);
-			logger.info("terminate instance result "+result);
+			ec2Client.terminateInstances(terminateRequest);
 		} catch (AmazonServiceException e) {
 			logger.severe("Error terminating instances");
 			logger.severe("Caught Exception: " + e.getMessage());
@@ -104,24 +99,31 @@ public class AWSEC2ClientService {
 			logger.severe("Caught Exception " + e.getMessage());
 		}
 	}
-	
-	public int getRunningInstanceCount(){
+
+	public int getRunningInstanceCount() {
 		int count = 0;
-		
-		DescribeInstancesRequest request = new DescribeInstancesRequest();
-		DescribeInstancesResult result;
-		synchronized(this) {
-			result = ec2Client.describeInstances(request);
+		try {
+			List<String> states = new ArrayList<String>();
+			states.add("pending");
+			states.add("running");
+			Filter filter = new Filter("instance-state-name", states);
+			DescribeInstancesRequest request = new DescribeInstancesRequest().withFilters(filter);
+			DescribeInstancesResult result;
+			synchronized (mutex) {
+				result = ec2Client.describeInstances(request);
+				Thread.sleep(2000);
 		}
-		for(Reservation reservation : result.getReservations()) {
-			for(Instance instance : reservation.getInstances()){
-				if(InstanceStateName.Pending.toString().equals(instance.getState().getName())
-						|| InstanceStateName.Running.toString().equals(instance.getState().getName())){
-					count++;
-				}
-			}
+			count = result.getReservations().size();
+			logger.info("instance count "+count);
+		} catch (AmazonServiceException e) {
+			logger.severe("Error terminating instances");
+			logger.severe("Caught Exception: " + e.getMessage());
+			logger.severe("Reponse Status Code: " + e.getStatusCode());
+			logger.severe("Error Code: " + e.getErrorCode());
+			logger.severe("Request ID: " + e.getRequestId());
+		} catch (Exception e) {
+			logger.severe("Caught Exception " + e.getMessage());
 		}
-		logger.info("instance count "+count);
 		return count;
 	}
 
