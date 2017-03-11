@@ -14,8 +14,8 @@ public class CloudPiController {
 	private CloudPiService cloudPiService;
 	
 	@RequestMapping(value = "/cloudpi", method = RequestMethod.GET)
-	public void calculatePi(@RequestParam(value = "input", required = true)String input){
-		cloudPiService.calculatePi(input);
+	public String calculatePi(@RequestParam(value = "input", required = true)String input){
+		return cloudPiService.calculatePi(input);
 		
 	}
 }

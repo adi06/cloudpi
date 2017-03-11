@@ -1,5 +1,8 @@
 package application.service;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -21,9 +24,9 @@ public class CloudPiService {
 	private static final ConcurrentHashMap<String, String> instanceIdMap = new ConcurrentHashMap<String, String>();
 	private static final Logger logger = Logger.getLogger(CloudPiService.class.getName());
 
-	public void calculatePi(String input) {
-
+	public String calculatePi(String input) {
 		sqsClientService.push(input);
+		String output="";
 
 		while (sqsClientService.getNumberOfMessages() > 0) {
 			int count = ec2ClientService.getRunningInstanceCount();
@@ -37,7 +40,9 @@ public class CloudPiService {
 					for (String instanceID : instanceIds) {
 						String key = instanceIdMap.get(instanceID);
 						if (s3ClientService.hasObject(key)) {
+							output = s3ClientService.getObject(key);
 							logger.info("key found " + key);
+							logger.info("output " + output);
 							ec2ClientService.terminateInstance(instanceID);
 							instanceIdMap.remove(instanceID);
 						}
@@ -52,6 +57,6 @@ public class CloudPiService {
 				}
 			}
 		}
-
+		return output;
 	}
 }

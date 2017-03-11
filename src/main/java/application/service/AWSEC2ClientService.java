@@ -50,16 +50,16 @@ public class AWSEC2ClientService {
 		try {
 
 			String cmd = "#!/bin/bash\n" + "echo {0} > ~/pifft/test-{0}.in\n"
-					+ "~/pifft/pifft ~/pifft/test-{0}.in > /tmp/pifft-{0}.out\n" + "~/bin/aws s3api put-object"
-					+ " --bucket s3-cloudpi" + " --key \"`cat ~/pifft/test-{0}.in`\"" + " --body /tmp/pifft-{0}.out";
+					+ "~/pifft/pifft ~/pifft/test-{0}.in > /tmp/pifft-{0}.txt\n" + "/usr/bin/aws s3api put-object"
+					+ " --bucket s3-cloudpi-ani" + " --key \"`cat ~/pifft/test-{0}.in`\"" + " --body /tmp/pifft-{0}.txt";
 
 			cmd = MessageFormat.format(cmd, new Object[] { iterations });
 			logger.info("Command " + cmd);
 			String cmdEncoding = Base64.getEncoder().encodeToString(cmd.getBytes());
 			// TODO move to configuration file.
-			RunInstancesRequest runInstanceRequest = new RunInstancesRequest().withImageId("ami-5deb673d")
-					.withMinCount(1).withMaxCount(1).withInstanceType("t2.micro").withKeyName("kp_cloudpi")
-					.withSecurityGroups("sg_cloudpi").withUserData(cmdEncoding);
+			RunInstancesRequest runInstanceRequest = new RunInstancesRequest().withImageId(awsConfig.getAmi())
+					.withMinCount(1).withMaxCount(1).withInstanceType(awsConfig.getInstanceType()).withKeyName(awsConfig.getKeypair())
+					.withSecurityGroups(awsConfig.getSecurityGroup()).withUserData(cmdEncoding);
 
 			RunInstancesResult instancesResult = ec2Client.runInstances(runInstanceRequest);
 			instanceId = instancesResult.getReservation().getInstances().get(0).getInstanceId();
