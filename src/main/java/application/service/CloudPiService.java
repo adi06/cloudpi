@@ -26,36 +26,51 @@ public class CloudPiService {
 
 	public String calculatePi(String input) {
 		sqsClientService.push(input);
-		String output="";
+		// Check if the output is already computed?
+		if (!s3ClientService.hasObject(input)) {
+			while (sqsClientService.getNumberOfMessages() > 0) {
+				int count = ec2ClientService.getRunningInstanceCount();
+				if (count < INSTANCE_POOL_SIZE) {
+					String msg = sqsClientService.pop();
+					String instanceId = ec2ClientService.createInstance(msg);
+					instanceIdMap.put(instanceId, msg);
 
-		while (sqsClientService.getNumberOfMessages() > 0) {
-			int count = ec2ClientService.getRunningInstanceCount();
-			if (count < INSTANCE_POOL_SIZE) {
-				String msg = sqsClientService.pop();
-				String instanceId = ec2ClientService.createInstance(msg);
-				instanceIdMap.put(instanceId, msg);
-
-				while (instanceIdMap.size() > 0) {
-					Set<String> instanceIds = instanceIdMap.keySet();
-					for (String instanceID : instanceIds) {
-						String key = instanceIdMap.get(instanceID);
-						if (s3ClientService.hasObject(key)) {
-							output = s3ClientService.getObject(key);
-							logger.info("key found " + key);
-							logger.info("output " + output);
-							ec2ClientService.terminateInstance(instanceID);
-							instanceIdMap.remove(instanceID);
+					while (instanceIdMap.size() > 0) {
+						Set<String> instanceIds = instanceIdMap.keySet();
+						for (String instanceID : instanceIds) {
+							String key = instanceIdMap.get(instanceID);
+							if (s3ClientService.hasObject(key)) {
+								return returnOutput(key, instanceID);
+							}
 						}
 					}
-				}
-			} else {
-				try {
-					logger.info("instance pool reached.." + count);
-					Thread.sleep(2000);
-				} catch (InterruptedException e) {
-					logger.severe("" + e);
+				} else {
+					try {
+						logger.info("instance pool reached.." + count);
+						Thread.sleep(2000);
+					} catch (InterruptedException e) {
+						logger.severe("" + e);
+					}
 				}
 			}
+		} else {
+			// Output already exists no new instance will be created
+			logger.info("Output already calculated");
+			return returnOutput(input, null);
+		}
+		return null;
+	}
+
+	/**
+	 * This function will fetch the output from S3. Terminate the instance if one was created. 
+	 */
+	public String returnOutput(String key, String instanceID) {
+		String output = s3ClientService.getObject(key);
+		logger.info("key found " + key);
+		logger.info("output " + output);
+		if (instanceID != null) {
+			ec2ClientService.terminateInstance(instanceID);
+			instanceIdMap.remove(instanceID);
 		}
 		return output;
 	}
