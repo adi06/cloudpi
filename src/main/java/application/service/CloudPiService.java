@@ -25,9 +25,9 @@ public class CloudPiService {
 	private static final Logger logger = Logger.getLogger(CloudPiService.class.getName());
 
 	public String calculatePi(String input) {
-		sqsClientService.push(input);
 		// Check if the output is already computed?
 		if (!s3ClientService.hasObject(input)) {
+			sqsClientService.push(input);
 			while (sqsClientService.getNumberOfMessages() > 0) {
 				int count = ec2ClientService.getRunningInstanceCount();
 				if (count < INSTANCE_POOL_SIZE) {
