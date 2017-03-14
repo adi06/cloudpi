@@ -50,8 +50,8 @@ public class AWSEC2ClientService {
 		try {
 
 			String cmd = "#!/bin/bash\n" + "echo {0} > ~/pifft/test-{0}.in\n"
-					+ "~/pifft/pifft ~/pifft/test-{0}.in > /tmp/pifft-{0}.txt\n" + "/usr/bin/aws s3api put-object"
-					+ " --bucket s3-cloudpi-ani" + " --key \"`cat ~/pifft/test-{0}.in`\"" + " --body /tmp/pifft-{0}.txt";
+					+ "~/pifft/pifft ~/pifft/test-{0}.in > /tmp/pifft-{0}.txt\n" + "~/bin/aws s3api put-object"
+					+ " --bucket s3-cloudpi" + " --key \"`cat ~/pifft/test-{0}.in`\"" + " --body /tmp/pifft-{0}.txt";
 
 			cmd = MessageFormat.format(cmd, new Object[] { iterations });
 			logger.info("Command " + cmd);
@@ -111,7 +111,6 @@ public class AWSEC2ClientService {
 			DescribeInstancesResult result;
 			synchronized (mutex) {
 				result = ec2Client.describeInstances(request);
-				Thread.sleep(2000);
 		}
 			count = result.getReservations().size();
 			logger.info("instance count "+count);

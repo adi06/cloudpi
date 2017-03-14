@@ -85,12 +85,14 @@ public class AWSS3ClientService {
 	 * This method returns the content of the file for the given key.
 	 */
 	public String getObject(String key) {
+		InputStream input = null;
+		BufferedReader reader = null;
 		try {
 			logger.info("Downloading an object");
 			S3Object s3object = s3Client.getObject(new GetObjectRequest(s3Config.getBucket(), key));
 			logger.info("Content-Type: " + s3object.getObjectMetadata().getContentType());
-			InputStream input = s3object.getObjectContent();
-			BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+			input = s3object.getObjectContent();
+			reader = new BufferedReader(new InputStreamReader(input));
 			StringBuilder sb = new StringBuilder();
 			while (true) {
 				String line = reader.readLine();
@@ -102,6 +104,16 @@ public class AWSS3ClientService {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+		finally{
+				try {
+					if(input != null)
+						input.close();
+					if(reader != null)
+						reader.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 		}
 		return null;
 	}

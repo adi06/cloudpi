@@ -2,6 +2,8 @@ package application.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -74,8 +76,8 @@ public class AWSSQSClientService {
 	}
 	public void push(String input) {
 		try{
-		SendMessageRequest sendMessageRequest = new SendMessageRequest(sqsQueueUrl, input);
-		sendMessageRequest.setMessageGroupId("cloudPi");
+		SendMessageRequest sendMessageRequest = new SendMessageRequest(sqsQueueUrl, input).withMessageGroupId("cloudPi")
+													.withMessageDeduplicationId("cloudpi-"+UUID.randomUUID().toString());
 
 		sqsClient.sendMessage(sendMessageRequest);
 		logger.info("message " + input);
